@@ -1,0 +1,8 @@
+.vscode
+__pycache__
+dataset
+original_aka
+vocalsweights
+*.wav
+*.h5
+*.png
