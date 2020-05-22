@@ -15,6 +15,7 @@ import musdb
 from IPython.display import Audio, display
 from scipy.signal import stft, istft
 import librosa
+import psutil
 
 
 class Acapella:
@@ -25,7 +26,6 @@ class Acapella:
         self.model_unet.compile(loss='mean_squared_error', optimizer='adam', metrics=[Accuracy()])
         self.model_unetpp = Nest_Net()
         self.model_unetpp.compile(loss='mean_squared_error', optimizer='adam', metrics=[Accuracy()])
-
 
     def saveWeights(self, path):
         self.model.save(path+'.h5', overwrite=True)
@@ -85,17 +85,18 @@ class Acapella:
         dropout_rate = 0.5
         act = "relu"
 
-        for i in range(6):
-            X,M = dataset(data[i*10:(i+1)*10])
-            #self.model.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
+        for i in range(5):
+            X,M = dataset(data[i])
             self.model_unet.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
-            #self.model_unetpp.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
+            # self.model_unet.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
+            # self.model_unetpp.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
             #print('the ' + i + 'th round')
+            print(psutil.virtual_memory()[1])
 
         self.saveWeights('./model')
+        print("saved")
 
         return (self.model, self.model_unet, self.model_unetpp)
-
 
     def predict(self, file_path):
         #blstm
@@ -124,9 +125,9 @@ class Acapella:
     def predict_musdb(self, track):
 
         X, M = dataset(track)
-        X_origin = stft(track[0].audio.T, nperseg=4096, noverlap=3072)[-1]
+        X_origin = stft(track.audio.T, nperseg=4096, noverlap=3072)[-1]
 
-        M_predict = self.model.predict(X)
+        M_predict = self.model_unet.predict(X)
         # M2_predict = self.model_unet.predict(X)
         # M3_predict = self.model_unetpp.predict(X)
 
@@ -138,7 +139,8 @@ class Acapella:
                     'other':M_predict}
         # MM_predict = {'vocals': M_predict}
         newM = ichop(X_origin, MM_predict)
-        estimates = estimateSpectro(X_origin, newM)
+        # newM = ichop(MM_predict)
+        estimates = estimateSpectro(newM)
         return estimates
 
         
@@ -162,17 +164,20 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     acapellabot = Acapella()
-    mus = musdb.DB(download=True, subsets='train')
+    #mus = musdb.DB(download=True, subsets='train')
+    
 
     if args.command == 'train':
         model = acapellabot.train('DSD100subset/Mixtures/Test', 'DSD100subset/Sources/Test', args.instrument)
 
     if args.command == 'train_musdb':
+        mus = musdb.DB(root='~/mus/musdb18', setup_file=None, 
+                is_wav=False, download=False, subsets='train', split=None)[50:100]
         (blstm, unet, unetpp) = acapellabot.train_musdb(mus)
 
     if args.command == 'predict_musdb':
-
-        track = [mus[-5]]
+        mus = musdb.DB(download=True, subsets='train')
+        track = mus[-5]
 
         acapellabot.loadWeights(args.weights)
         result = acapellabot.predict_musdb(track)
@@ -182,7 +187,7 @@ if __name__ == "__main__":
         for target, estimate in result.items():
             librosa.output.write_wav('./'+target+'.wav', estimate.T, 44100)
 
-        librosa.output.write_wav('./origin''.wav', track[0].audio.T, 44100)
+        librosa.output.write_wav('./origin''.wav', track.audio.T, 44100)
 
     if args.command == 'predict':
         acapellabot.loadWeights(args.weights)
