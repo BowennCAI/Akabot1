@@ -65,7 +65,7 @@ def chop(spectrogram, wanted_time, ratio_overlap):
 
 #   return X, M
 
-def dataset(track, time=256, ratio_overlap=0.5):
+def dataset(nbmus, time=256, ratio_overlap=0.5):
   eps = np.finfo(np.float).eps  # small epsilon to avoid dividing by zero
 
   X = np.empty((0, 2, time, 2049), float)
@@ -74,27 +74,28 @@ def dataset(track, time=256, ratio_overlap=0.5):
       'bass': np.empty((0, 2, time, 2049), float),
       'other': np.empty((0, 2, time, 2049), float)} # [batch, channel, time, freaquency] 
 
-  # print(track.name)
-  # print(track.name)
-  x = np.abs(stft(track.audio.T, nperseg=4096, noverlap=3072)[-1])   # shape: (nb_channels=channel, nb_features=freq, nb_frames=time)
-  xs = chop(x,time,ratio_overlap)
-  X = np.append(X, xs, axis=0)
+  for track in nbmus:
+    # print(track.name)
+    x = np.abs(stft(track.audio.T, nperseg=4096, noverlap=3072)[-1])   # shape: (nb_channels=channel, nb_features=freq, nb_frames=time)
+    xs = chop(x,time,ratio_overlap)
+    X = np.append(X, xs, axis=0)
 
-  P = {} # sources spectrograms
-  # compute model as the sum of spectrograms 分母
-  # model = eps 
-  for name, source in track.sources.items():  # 遍历所有声部，求mask中的分母
-    # compute spectrogram of target source:
-    P[name] = np.abs(stft(source.audio.T, nperseg=4096, noverlap=3072)[-1])
-    # model += P[name]
+    P = {} # sources spectrograms
+    # compute model as the sum of spectrograms 分母
+    # model = eps 
+    for name, source in track.sources.items():  # 遍历所有声部，求mask中的分母
+      # compute spectrogram of target source:
+      P[name] = np.abs(stft(source.audio.T, nperseg=4096, noverlap=3072)[-1])
+      # model += P[name]
 
-  for name, source in track.sources.items(): # 遍历所有声部，用mask分离出各个声部
-    # compute soft mask as the ratio between source spectrogram and total
-    mask = P[name] # / model
-    masks = chop(mask,time,ratio_overlap)
-    M[name] = np.append(M[name], masks, axis=0)
+    for name, source in track.sources.items(): # 遍历所有声部，用mask分离出各个声部
+      # compute soft mask as the ratio between source spectrogram and total
+      mask = P[name] # / model
+      masks = chop(mask,time,ratio_overlap)
+      M[name] = np.append(M[name], masks, axis=0)
 
   return X, M
+
 
 def ichop(X_origin, M, time_scale=256, ratio_overlap=0.5): # 输入只一首歌
   channel, frequency, time = X_origin.shape

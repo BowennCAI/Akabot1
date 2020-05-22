@@ -84,8 +84,8 @@ class Acapella:
         dropout_rate = 0.5
         act = "relu"
 
-        for i in range(50):
-            X,M = dataset(data[i])
+        for i in range(1):
+            X,M = dataset(data[60*i:60*(i+1)])
             self.model.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
             # self.model_unet.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
             # self.model_unetpp.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
@@ -124,7 +124,7 @@ class Acapella:
     def predict_musdb(self, track):
 
         X, M = dataset(track)
-        X_origin = stft(track.audio.T, nperseg=4096, noverlap=3072)[-1]
+        X_origin = stft(track[0].audio.T, nperseg=4096, noverlap=3072)[-1]
 
         M_predict = self.model.predict(X)
         # M2_predict = self.model_unet.predict(X)
@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
     if args.command == 'predict_musdb':
         mus = musdb.DB(download=True, subsets='train')
-        track = mus[-1]
+        track = [mus[-1]]
 
         acapellabot.loadWeights(args.weights)
         result = acapellabot.predict_musdb(track)
@@ -187,7 +187,7 @@ if __name__ == "__main__":
         for target, estimate in result.items():
             librosa.output.write_wav('./'+target+'.wav', estimate.T, 44100)
 
-        librosa.output.write_wav('./origin''.wav', track.audio.T, 44100)
+        librosa.output.write_wav('./origin''.wav', track[0].audio.T, 44100)
 
     if args.command == 'predict':
         acapellabot.loadWeights(args.weights)
