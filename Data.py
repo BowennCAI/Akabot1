@@ -118,25 +118,26 @@ def ichop(X_origin, M, time_scale=256, ratio_overlap=0.5): # 输入只一首歌
     newM[name] = newM[name][:channel, :frequency, :time]
   return newM
 
-def estimateSpectro(newM):  # X_origin, 
+def estimateSpectro(X_origin, newM):  # X_origin, 
   
   # small epsilon to avoid dividing by zero
-  #eps = np.finfo(np.float).eps
+  eps = np.finfo(np.float).eps
   # compute model as the sum of spectrograms
-  #model = eps
+  model = eps
 
-  #for name, source in newM.items():  # 遍历所有声部，求mask中的分母
-    #model += newM[name]
+  for name, source in newM.items():  # 遍历所有声部，求mask中的分母
+    model += newM[name]
+
 
 
   # now performs separation
   estimates = {}
   for name, source in newM.items(): # 遍历所有声部，用mask分离出各个声部
     # compute soft mask as the ratio between source spectrogram and total
-    Mask = newM[name] #/ model
+    Mask = newM[name] / model
 
     # multiply the mix by the mask
-    Yj = Mask # * X_origin
+    Yj = Mask * X_origin
 
     # invert to time domain
     target_estimate = istft(Yj, nperseg=4096, noverlap=3072)[1].T

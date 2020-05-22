@@ -5,7 +5,6 @@ from tensorflow.keras.metrics import Accuracy
 #     spectrogramToAudioFile, saveAudioFile, saveSpectrogram, song2spectrogram, song2spectrogram_unet, expandToGrid_unet,\
 #     ichop_unet, chop_unet
 from Data import chop, dataset, ichop, estimateSpectro
-from data_processing import saveAudioFile
 from models import blstm, apply_unet, apply_blstm, Nest_Net
 from tensorflow.keras.models import load_model
 from original_aka import console
@@ -85,9 +84,9 @@ class Acapella:
         dropout_rate = 0.5
         act = "relu"
 
-        for i in range(5):
+        for i in range(50):
             X,M = dataset(data[i])
-            self.model_unet.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
+            self.model.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
             # self.model_unet.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
             # self.model_unetpp.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
             #print('the ' + i + 'th round')
@@ -127,7 +126,7 @@ class Acapella:
         X, M = dataset(track)
         X_origin = stft(track.audio.T, nperseg=4096, noverlap=3072)[-1]
 
-        M_predict = self.model_unet.predict(X)
+        M_predict = self.model.predict(X)
         # M2_predict = self.model_unet.predict(X)
         # M3_predict = self.model_unetpp.predict(X)
 
@@ -140,7 +139,7 @@ class Acapella:
         # MM_predict = {'vocals': M_predict}
         newM = ichop(X_origin, MM_predict)
         # newM = ichop(MM_predict)
-        estimates = estimateSpectro(newM)
+        estimates = estimateSpectro(X_origin, newM)
         return estimates
 
         
@@ -171,13 +170,14 @@ if __name__ == "__main__":
         model = acapellabot.train('DSD100subset/Mixtures/Test', 'DSD100subset/Sources/Test', args.instrument)
 
     if args.command == 'train_musdb':
-        mus = musdb.DB(root='~/mus/musdb18', setup_file=None, 
-                is_wav=False, download=False, subsets='train', split=None)[50:100]
+        # mus = musdb.DB(root='~/mus/musdb18', setup_file=None, 
+        #         is_wav=False, download=False, subsets='train', split=None)[50:100]
+        mus = musdb.DB(download=True, subsets='train')
         (blstm, unet, unetpp) = acapellabot.train_musdb(mus)
 
     if args.command == 'predict_musdb':
         mus = musdb.DB(download=True, subsets='train')
-        track = mus[-5]
+        track = mus[-1]
 
         acapellabot.loadWeights(args.weights)
         result = acapellabot.predict_musdb(track)
